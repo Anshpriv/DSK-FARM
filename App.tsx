@@ -132,7 +132,8 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
     extraMattress: '0',
     comingFrom: '',
     transportMode: 'Private Car',
-    roomType: '2BHK Cottage'
+    roomType: '2BHK Cottage',
+    numberOfRooms: '1'
   });
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [kidsAges, setKidsAges] = useState<string[]>([]);
@@ -191,20 +192,23 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
     const [y, m, d] = dateStr.split('-').map(Number);
-    const date = new Date(y, m - 1, d);
-    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    return `${d.toString().padStart(2, '0')}-${m.toString().padStart(2, '0')}-${y}`;
   };
 
   const isDateFull = (dateStr: string) => {
     if (!dateStr) return false;
-    const count = bookings.filter(b => 
+    const existingBookingsCount = bookings.filter(b => 
       b.roomType === formData.roomType && 
       b.status !== 'declined' &&
       dateStr >= b.checkIn && dateStr < b.checkOut
-    ).length;
+    ).reduce((acc, b) => acc + (b.numberOfRooms || 1), 0);
 
-    if (formData.roomType === '2BHK Cottage' || formData.roomType === 'Cottage') {
-      return count >= 6;
+    const requestedRooms = parseInt(formData.numberOfRooms, 10);
+
+    if (formData.roomType === '2BHK Cottage' || formData.roomType === 'Cottage' || formData.roomType === '2BHK Delux room') {
+       // Assuming 6 is the limit for cottages. If rooms have different limits, adjust here.
+       // For now applying the logic requested for cottages.
+       if (formData.roomType.includes('Cottage')) return (existingBookingsCount + requestedRooms) > 6;
     }
     return false;
   };
@@ -214,7 +218,7 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
     const totalGuests = (parseInt(formData.adults) || 0) + kidsAges.length;
     const kidsDetails = kidsAges.map(age => `${age} yrs (${getKidChargeMessage(age)})`).join(', ');
     
-    const message = `New Booking Request at DSK Farm\n\n*Guest Details*\nName: ${formData.name}\nPhone: ${formData.phone}\nFrom: ${formData.comingFrom}\n\n*Stay Details*\nRoom: ${formData.roomType}\nDates: ${formatDate(formData.checkIn)} to ${formatDate(formData.checkOut)}\nTime: ${formData.checkInTime || 'Standard'} - ${formData.checkOutTime || 'Standard'}\nTransport: ${formData.transportMode}\n\n*Group Info*\nTotal Guests: ${totalGuests}\nAdults: ${formData.adults}\nKids: ${kidsAges.length} [${kidsDetails}]\nVeg: ${formData.vegCount} | Non-Veg: ${formData.nonVegCount}\nExtra Mattress: ${formData.extraMattress}\n\n*Estimated Price: ₹${calculatedPrice.toLocaleString('en-IN')}*\n\nPlease confirm availability.`;
+    const message = `New Booking Request at DSK Farm\n\n*Guest Details*\nName: ${formData.name}\nPhone: ${formData.phone}\nFrom: ${formData.comingFrom}\n\n*Stay Details*\nRoom: ${formData.roomType} (Qty: ${formData.numberOfRooms})\nDates: ${formatDate(formData.checkIn)} to ${formatDate(formData.checkOut)}\nTime: ${formData.checkInTime || 'Standard'} - ${formData.checkOutTime || 'Standard'}\nTransport: ${formData.transportMode}\n\n*Group Info*\nTotal Guests: ${totalGuests}\nAdults: ${formData.adults}\nKids: ${kidsAges.length} [${kidsDetails}]\nVeg: ${formData.vegCount} | Non-Veg: ${formData.nonVegCount}\nExtra Mattress: ${formData.extraMattress}\n\n*Estimated Price: ₹${calculatedPrice.toLocaleString('en-IN')}*\n\nPlease confirm availability.`;
     const encodedText = encodeURIComponent(message);
     
     // Create booking object for Admin Panel
@@ -228,7 +232,8 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
       checkOutTime: formData.checkOutTime || 'Standard',
       roomType: formData.roomType,
       status: 'pending',
-      price: calculatedPrice
+      price: calculatedPrice,
+      numberOfRooms: parseInt(formData.numberOfRooms) || 1
     };
     onSubmit(newBooking);
 
@@ -343,6 +348,15 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
               <option value="Day Trip">Day Trip</option>
             </select>
           </div>
+
+          {(formData.roomType === '2BHK Cottage' || formData.roomType === 'Cottage') && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Number of Cottages (Max 6)</label>
+              <select value={formData.numberOfRooms} onChange={e => setFormData({...formData, numberOfRooms: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none bg-white">
+                {[1, 2, 3, 4, 5, 6].map(num => <option key={num} value={num}>{num}</option>)}
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-xl">
             <div>
@@ -851,7 +865,8 @@ const App: React.FC = () => {
                 check_out_time: newBooking.checkOutTime,
                 room_type: newBooking.roomType,
                 status: newBooking.status,
-                price: newBooking.price
+                price: newBooking.price,
+                number_of_rooms: newBooking.numberOfRooms
               }]).select();
 
               if (error) {
