@@ -41,6 +41,12 @@ export default function AdminPanel({ onBack, bookings, onUpdateStatus }: AdminPa
   const [password, setPassword] = useState('');
   const [discountInputs, setDiscountInputs] = useState<{[key:string]: string}>({});
 
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return `${d.toString().padStart(2, '0')}-${m.toString().padStart(2, '0')}-${y}`;
+  };
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     // In production, verify this securely on the server
@@ -162,7 +168,7 @@ export default function AdminPanel({ onBack, bookings, onUpdateStatus }: AdminPa
                       <div className="text-sm">
                         <span className="font-medium text-gray-700">{booking.roomType}</span>
                         <div className="text-gray-500 flex items-center gap-1 mt-1">
-                          <Calendar size={14} /> {booking.checkIn} - {booking.checkOut}
+                          <Calendar size={14} /> {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
                         </div>
                         {booking.price && (
                           <div className="text-green-600 font-bold mt-1">₹{booking.price.toLocaleString('en-IN')}</div>
