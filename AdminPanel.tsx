@@ -9,6 +9,7 @@ import {
   LogOut,
   AlertCircle 
 } from 'lucide-react';
+import qrCode from './farm/qr.jpg';
 
 
 export type RoomType = string;
@@ -23,23 +24,27 @@ export interface BookingRequest {
   checkOutTime?: string;
   roomType: RoomType;
   status: 'pending' | 'confirmed' | 'declined';
+  numberOfRooms?: number;
+  price?: number;
+  discount?: number;
 }
 
 
 interface AdminPanelProps {
   onBack?: () => void;
   bookings: BookingRequest[];
-  onUpdateStatus: (id: string, status: 'confirmed' | 'declined') => void;
+  onUpdateStatus: (id: string, status: 'confirmed' | 'declined', discount?: number) => void;
 }
 
 export default function AdminPanel({ onBack, bookings, onUpdateStatus }: AdminPanelProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
+  const [discountInputs, setDiscountInputs] = useState<{[key:string]: string}>({});
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     // In production, verify this securely on the server
-    if (password === 'admin123') {
+    if (password === '1') {
       setIsAuthenticated(true);
     } else {
       alert('Invalid Password');
@@ -53,22 +58,18 @@ export default function AdminPanel({ onBack, bookings, onUpdateStatus }: AdminPa
     window.open(`https://wa.me/${cleanPhone}?text=${encodedText}`, '_blank');
   };
 
-  const handleConfirm = (id: string) => {
+  const handleConfirm = (id: string, discount: number) => {
     const booking = bookings.find((b) => b.id === id);
     if (!booking) return;
+    
+    onUpdateStatus(id, 'confirmed', discount);
 
-    onUpdateStatus(id, 'confirmed');
+    const price = booking.price || 0;
+    const finalPrice = price - discount;
+    const advanceAmount = finalPrice / 2;
+    const qrLink = `${window.location.origin}${qrCode}`;
 
-    // Send Confirmation WhatsApp
-    const message = `Hello ${booking.userName}, your booking for ${booking.roomType} is CONFIRMED! 🌟
-
-📅 Arrival Date: ${booking.checkIn}
-🕒 Check-in Time: ${booking.checkInTime || 'Standard'}
-
-📅 Departure Date: ${booking.checkOut}
-🕒 Check-out Time: ${booking.checkOutTime || 'Standard'}
-
-Please pay 50% now via this QR code: [QR_LINK]. Remaining 50% on arrival.`;
+    const message = `*Booking Confirmed!* ✅\n\nHello ${booking.userName},\nYour booking at DSK Farm is confirmed.\n\n*Details:*\nRoom: ${booking.roomType}\nDates: ${booking.checkIn} to ${booking.checkOut}\n\n*Payment Breakdown:*\nTotal Amount: ₹${price.toLocaleString('en-IN')}\nDiscount: ₹${discount.toLocaleString('en-IN')}\n*Final Payable: ₹${finalPrice.toLocaleString('en-IN')}*\n\n*Please pay 50% advance (₹${advanceAmount.toLocaleString('en-IN')}) to confirm.*\n\n*Payment Options:*\nUPI ID: manojwani130974-2@okaxis\n\n*Scan QR Code via Link:*\n${qrLink}`;
     sendWhatsAppMessage(booking.userPhone, message);
   };
 
@@ -163,6 +164,9 @@ Please pay 50% now via this QR code: [QR_LINK]. Remaining 50% on arrival.`;
                         <div className="text-gray-500 flex items-center gap-1 mt-1">
                           <Calendar size={14} /> {booking.checkIn} - {booking.checkOut}
                         </div>
+                        {booking.price && (
+                          <div className="text-green-600 font-bold mt-1">₹{booking.price.toLocaleString('en-IN')}</div>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -176,8 +180,15 @@ Please pay 50% now via this QR code: [QR_LINK]. Remaining 50% on arrival.`;
                     <td className="px-6 py-4 text-right">
                       {booking.status === 'pending' ? (
                         <div className="flex justify-end gap-2">
+                          <input 
+                            type="number" 
+                            placeholder="Discount ₹"
+                            className="w-24 px-2 py-1 text-sm border border-gray-300 rounded outline-none focus:border-green-500"
+                            value={discountInputs[booking.id] || ''}
+                            onChange={(e) => setDiscountInputs({...discountInputs, [booking.id]: e.target.value})}
+                          />
                           <button
-                            onClick={() => handleConfirm(booking.id)}
+                            onClick={() => handleConfirm(booking.id, Number(discountInputs[booking.id] || 0))}
                             className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700"
                           >
                             <Check size={16} /> Confirm
