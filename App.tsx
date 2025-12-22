@@ -22,7 +22,9 @@ import {
   Users,
   Car,
   Baby,
-  Shield
+  Shield,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { AMENITIES, TIMINGS, RULES, CONTACT_INFO } from './constants';
 import heroBg from './farm/1.png';
@@ -116,7 +118,7 @@ const AnalogClock = ({ time }: { time: string }) => {
   );
 };
 
-const BookingModal = ({ onClose, categories, onSubmit }: { onClose: () => void; categories: any[]; onSubmit: (booking: any) => void }) => {
+const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: () => void; categories: any[]; onSubmit: (booking: any) => void; bookings: BookingRequest[] }) => {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -125,7 +127,6 @@ const BookingModal = ({ onClose, categories, onSubmit }: { onClose: () => void; 
     checkInTime: '',
     checkOutTime: '',
     adults: '2',
-    kids: '0',
     vegCount: '0',
     nonVegCount: '0',
     extraMattress: '0',
@@ -134,6 +135,45 @@ const BookingModal = ({ onClose, categories, onSubmit }: { onClose: () => void; 
     roomType: '2BHK Cottage'
   });
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [kidsAges, setKidsAges] = useState<string[]>([]);
+  const [calculatedPrice, setCalculatedPrice] = useState(0);
+
+  const addKid = () => setKidsAges([...kidsAges, '']);
+  const removeKid = (index: number) => setKidsAges(kidsAges.filter((_, i) => i !== index));
+  const updateKidAge = (index: number, val: string) => {
+    const newAges = [...kidsAges];
+    newAges[index] = val;
+    setKidsAges(newAges);
+  };
+
+  const getKidChargeMessage = (ageStr: string) => {
+    const age = parseInt(ageStr);
+    if (isNaN(age)) return '';
+    if (age < 5) return 'Free';
+    if (age <= 8) return '50% Charge';
+    return 'Full Charge';
+  };
+
+  useEffect(() => {
+    const adults = parseInt(formData.adults) || 0;
+    let kidsChargeHeads = 0;
+    kidsAges.forEach(ageStr => {
+      const age = parseInt(ageStr);
+      if (!isNaN(age)) {
+        if (age > 8) kidsChargeHeads += 1;
+        else if (age >= 5) kidsChargeHeads += 0.5;
+      }
+    });
+
+    const totalHeads = adults + kidsChargeHeads;
+    let nights = 1;
+    if (formData.roomType !== 'Day Trip' && formData.checkIn && formData.checkOut) {
+      const diff = new Date(formData.checkOut).getTime() - new Date(formData.checkIn).getTime();
+      nights = Math.max(1, Math.ceil(diff / (1000 * 3600 * 24)));
+    }
+    const baseRate = formData.roomType === 'Day Trip' ? 1500 : 3000;
+    setCalculatedPrice(totalHeads * baseRate * nights);
+  }, [formData.adults, kidsAges, formData.roomType, formData.checkIn, formData.checkOut]);
 
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -155,10 +195,26 @@ const BookingModal = ({ onClose, categories, onSubmit }: { onClose: () => void; 
     return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
+  const isDateFull = (dateStr: string) => {
+    if (!dateStr) return false;
+    const count = bookings.filter(b => 
+      b.roomType === formData.roomType && 
+      b.status !== 'declined' &&
+      dateStr >= b.checkIn && dateStr < b.checkOut
+    ).length;
+
+    if (formData.roomType === '2BHK Cottage' || formData.roomType === 'Cottage') {
+      return count >= 6;
+    }
+    return false;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const totalGuests = parseInt(formData.adults, 10) + parseInt(formData.kids, 10);
-    const message = `New Booking Request at DSK Farm\n\nGuest Details*\nName: ${formData.name}\n Phone: ${formData.phone}\n From: ${formData.comingFrom}\n\nStay Details*\nRoom: ${formData.roomType}\n Dates: ${formatDate(formData.checkIn)} to ${formatDate(formData.checkOut)}\nTime: ${formData.checkInTime || 'Standard'} - ${formData.checkOutTime || 'Standard'}\n Transport: ${formData.transportMode}\n\nGroup Info*\nTotal Guests: ${totalGuests} (Adults: ${formData.adults}, Kids: ${formData.kids})\n Veg: ${formData.vegCount} |  Non-Veg: ${formData.nonVegCount}\n Extra Mattress: ${formData.extraMattress}\n\n Please confirm availability.`;
+    const totalGuests = (parseInt(formData.adults) || 0) + kidsAges.length;
+    const kidsDetails = kidsAges.map(age => `${age} yrs (${getKidChargeMessage(age)})`).join(', ');
+    
+    const message = `New Booking Request at DSK Farm\n\n*Guest Details*\nName: ${formData.name}\nPhone: ${formData.phone}\nFrom: ${formData.comingFrom}\n\n*Stay Details*\nRoom: ${formData.roomType}\nDates: ${formatDate(formData.checkIn)} to ${formatDate(formData.checkOut)}\nTime: ${formData.checkInTime || 'Standard'} - ${formData.checkOutTime || 'Standard'}\nTransport: ${formData.transportMode}\n\n*Group Info*\nTotal Guests: ${totalGuests}\nAdults: ${formData.adults}\nKids: ${kidsAges.length} [${kidsDetails}]\nVeg: ${formData.vegCount} | Non-Veg: ${formData.nonVegCount}\nExtra Mattress: ${formData.extraMattress}\n\n*Estimated Price: ₹${calculatedPrice.toLocaleString('en-IN')}*\n\nPlease confirm availability.`;
     const encodedText = encodeURIComponent(message);
     
     // Create booking object for Admin Panel
@@ -171,7 +227,8 @@ const BookingModal = ({ onClose, categories, onSubmit }: { onClose: () => void; 
       checkInTime: formData.checkInTime || 'Standard',
       checkOutTime: formData.checkOutTime || 'Standard',
       roomType: formData.roomType,
-      status: 'pending'
+      status: 'pending',
+      price: calculatedPrice
     };
     onSubmit(newBooking);
 
@@ -225,8 +282,9 @@ const BookingModal = ({ onClose, categories, onSubmit }: { onClose: () => void; 
               <label className="block text-sm font-medium text-gray-700 mb-1">Check-in</label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                <input required type="date" value={formData.checkIn} onChange={e => setFormData({...formData, checkIn: e.target.value})} className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none" />
+                <input required type="date" value={formData.checkIn} onChange={e => setFormData({...formData, checkIn: e.target.value})} className={`w-full pl-10 pr-4 py-2 rounded-xl border ${isDateFull(formData.checkIn) ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-green-500'} outline-none`} />
               </div>
+              {isDateFull(formData.checkIn) && <p className="text-xs text-red-500 mt-1">No booking available on this day</p>}
               <div className="flex items-center mt-2">
                 <input type="time" value={formData.checkInTime} onChange={e => setFormData({...formData, checkInTime: e.target.value})} className="flex-1 px-2 py-1 text-sm rounded-lg border border-gray-300 outline-none" />
                 <AnalogClock time={formData.checkInTime} />
@@ -253,19 +311,36 @@ const BookingModal = ({ onClose, categories, onSubmit }: { onClose: () => void; 
                 <input required type="number" min="1" value={formData.adults} onChange={e => setFormData({...formData, adults: e.target.value})} className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none" />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kids <span className="text-xs text-gray-500">(0-12)</span></label>
-              <div className="relative">
-                <Baby className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                <input required type="number" min="0" value={formData.kids} onChange={e => setFormData({...formData, kids: e.target.value})} className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none" />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Kids</label>
+            {kidsAges.map((age, idx) => (
+              <div key={idx} className="flex items-center gap-3 mb-2">
+                <div className="relative flex-1">
+                  <Baby className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input type="number" placeholder="Age" value={age} onChange={e => updateKidAge(idx, e.target.value)} className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none" />
+                </div>
+                <span className={`text-xs font-bold whitespace-nowrap ${getKidChargeMessage(age) === 'Free' ? 'text-green-600' : getKidChargeMessage(age) === '50% Charge' ? 'text-orange-500' : 'text-gray-600'}`}>
+                  {getKidChargeMessage(age)}
+                </span>
+                <button type="button" onClick={() => removeKid(idx)} className="p-2 text-red-500 hover:bg-red-50 rounded-full">
+                  <Trash2 size={18} />
+                </button>
               </div>
-            </div>
+            ))}
+            <button type="button" onClick={addKid} className="flex items-center gap-2 text-sm text-green-600 font-bold hover:text-green-700">
+              <Plus size={16} />
+              Add Kid
+            </button>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Room Type</label>
             <select value={formData.roomType} onChange={e => setFormData({...formData, roomType: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none bg-white">
-              {categories.filter(c => ['cottage', 'rooms', 'ac'].includes(c.id)).map(c => <option key={c.id} value={c.title}>{c.title}</option>)}
+              <option value="2BHK Delux room">2BHK Delux room</option>
+              <option value="2BHK Cottage">Cottage</option>
+              <option value="Day Trip">Day Trip</option>
             </select>
           </div>
 
@@ -299,7 +374,13 @@ const BookingModal = ({ onClose, categories, onSubmit }: { onClose: () => void; 
             </div>
           </div>
 
-          <button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl shadow-lg mt-2 transition-transform active:scale-95">Confirm via WhatsApp</button>
+          <div className="bg-green-50 p-4 rounded-xl text-center border border-green-200">
+            <p className="text-sm text-gray-600">Estimated Price</p>
+            <p className="text-3xl font-bold text-green-700">₹{calculatedPrice.toLocaleString('en-IN')}</p>
+            <p className="text-xs text-gray-500 mt-1">Final price confirmed by admin.</p>
+          </div>
+
+          <button type="submit" disabled={isDateFull(formData.checkIn)} className={`w-full ${isDateFull(formData.checkIn) ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'} text-white font-bold py-3 rounded-xl shadow-lg mt-2 transition-transform active:scale-95`}>Confirm via WhatsApp</button>
           <p className="text-xs text-center text-gray-500">We will confirm availability instantly.</p>
         </form>
       </motion.div>
@@ -754,13 +835,14 @@ const App: React.FC = () => {
           <BookingModal 
             onClose={() => setIsBookingOpen(false)} 
             categories={categories} 
+            bookings={bookings}
             onSubmit={async (newBooking) => {
               // 1. Update Local State (Optimistic)
               setBookings(prev => [newBooking, ...prev]);
 
               // 2. Insert into Supabase
-              const { error } = await supabase.from('bookings').insert([{
-                id: newBooking.id,
+              const { data, error } = await supabase.from('bookings').insert([{
+                // id: newBooking.id, // Let Supabase generate the ID
                 user_name: newBooking.userName,
                 user_phone: newBooking.userPhone,
                 check_in: newBooking.checkIn,
@@ -768,12 +850,16 @@ const App: React.FC = () => {
                 check_in_time: newBooking.checkInTime,
                 check_out_time: newBooking.checkOutTime,
                 room_type: newBooking.roomType,
-                status: newBooking.status
-              }]);
+                status: newBooking.status,
+                price: newBooking.price
+              }]).select();
 
               if (error) {
                 console.error('Error saving booking:', error);
                 alert("Error saving to database: " + error.message);
+              } else if (data && data[0]) {
+                // 3. Update local state with the REAL ID from database (so you can confirm/decline immediately)
+                setBookings(prev => prev.map(b => b.id === newBooking.id ? { ...b, id: data[0].id.toString() } : b));
               }
             }} 
           />
