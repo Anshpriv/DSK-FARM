@@ -17,7 +17,8 @@ import { Amenity, TimingInfo, Accommodation } from './types';
 
 export const CONTACT_INFO = {
   phone1: "+91 97638 53147",
-  phone2: "+91 95526 87075",
+  phone2: "+91 9226139414",
+  phone3: "+91 8482831551",
   locationLink: "https://www.google.com/maps?q=18.69732666015625,73.52864837646484&z=17&hl=en",
   address: "DSK Farm by Hempushpa Farms",
   socialHandle: "@hempushpafarm"
