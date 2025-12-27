@@ -126,14 +126,15 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
     checkOut: '',
     checkInTime: '',
     checkOutTime: '',
-    adults: '2',
+    adults: '0',
     vegCount: '0',
     nonVegCount: '0',
     extraMattress: '0',
     comingFrom: '',
     transportMode: 'Private Car',
-    roomType: '2BHK Cottage',
-    numberOfRooms: '1'
+    roomType: '2BHK Bunglow',
+    numberOfRooms: '0',
+    cottageType: 'AC rooms'
   });
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [kidsAges, setKidsAges] = useState<string[]>([]);
@@ -192,23 +193,31 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
     const [y, m, d] = dateStr.split('-').map(Number);
-    return `${d.toString().padStart(2, '0')}-${m.toString().padStart(2, '0')}-${y}`;
+    return `${d.toString().padStart(2, '0')}/${m.toString().padStart(2, '0')}/${y}`;
   };
 
   const isDateFull = (dateStr: string) => {
     if (!dateStr) return false;
-    const existingBookingsCount = bookings.filter(b => 
-      b.roomType === formData.roomType && 
-      b.status !== 'declined' &&
-      dateStr >= b.checkIn && dateStr < b.checkOut
-    ).reduce((acc, b) => acc + (b.numberOfRooms || 1), 0);
+    
+    let roomTypeFilter = formData.roomType;
+    if (formData.roomType === 'Cottage') {
+      roomTypeFilter = `Cottage - ${formData.cottageType}`;
+    }
+    
+    const existingBookingsCount = bookings.filter(b => {
+      let bookingRoomType = b.roomType;
+      if (b.roomType.includes('Cottage')) {
+        bookingRoomType = b.roomType;
+      }
+      return bookingRoomType === roomTypeFilter && 
+             b.status !== 'declined' &&
+             dateStr >= b.checkIn && dateStr < b.checkOut;
+    }).reduce((acc, b) => acc + (b.numberOfRooms || 1), 0);
 
     const requestedRooms = parseInt(formData.numberOfRooms, 10);
 
-    if (formData.roomType === '2BHK Cottage' || formData.roomType === 'Cottage' || formData.roomType === '2BHK Delux room') {
-       // Assuming 6 is the limit for cottages. If rooms have different limits, adjust here.
-       // For now applying the logic requested for cottages.
-       if (formData.roomType.includes('Cottage')) return (existingBookingsCount + requestedRooms) > 6;
+    if (formData.roomType === 'Cottage') {
+      return (existingBookingsCount + requestedRooms) > 3;
     }
     return false;
   };
@@ -218,10 +227,12 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
     const totalGuests = (parseInt(formData.adults) || 0) + kidsAges.length;
     const kidsDetails = kidsAges.map(age => `${age} yrs (${getKidChargeMessage(age)})`).join(', ');
     
-    const message = `New Booking Request at DSK Farm\n\n*Guest Details*\nName: ${formData.name}\nPhone: ${formData.phone}\nFrom: ${formData.comingFrom}\n\n*Stay Details*\nRoom: ${formData.roomType} (Qty: ${formData.numberOfRooms})\nDates: ${formatDate(formData.checkIn)} to ${formatDate(formData.checkOut)}\nTime: ${formData.checkInTime || 'Standard'} - ${formData.checkOutTime || 'Standard'}\nTransport: ${formData.transportMode}\n\n*Group Info*\nTotal Guests: ${totalGuests}\nAdults: ${formData.adults}\nKids: ${kidsAges.length} [${kidsDetails}]\nVeg: ${formData.vegCount} | Non-Veg: ${formData.nonVegCount}\nExtra Mattress: ${formData.extraMattress}\n\n*Estimated Price: ₹${calculatedPrice.toLocaleString('en-IN')}*\n\nPlease confirm availability.`;
+    const roomDisplayName = formData.roomType === 'Cottage' ? `Cottage - ${formData.cottageType}` : formData.roomType;
+    const message = `New Booking Request at DSK Farm\n\n*Guest Details*\nName: ${formData.name}\nPhone: ${formData.phone}\nFrom: ${formData.comingFrom}\n\n*Stay Details*\nRoom: ${roomDisplayName} (Qty: ${formData.numberOfRooms})\nDates: ${formatDate(formData.checkIn)} to ${formatDate(formData.checkOut)}\nTime: ${formData.checkInTime || 'Standard'} - ${formData.checkOutTime || 'Standard'}\nTransport: ${formData.transportMode}\n\n*Group Info*\nTotal Guests: ${totalGuests}\nAdults: ${formData.adults}\nKids: ${kidsAges.length} [${kidsDetails}]\nVeg: ${formData.vegCount} | Non-Veg: ${formData.nonVegCount}\nExtra Mattress: ${formData.extraMattress}\n\n*Estimated Price: ₹${calculatedPrice.toLocaleString('en-IN')}*\n\nPlease confirm availability.`;
     const encodedText = encodeURIComponent(message);
     
     // Create booking object for Admin Panel
+    const bookingRoomType = formData.roomType === 'Cottage' ? `Cottage - ${formData.cottageType}` : formData.roomType;
     const newBooking: BookingRequest = {
       id: Date.now().toString(),
       userName: formData.name,
@@ -230,7 +241,7 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
       checkOut: formData.checkOut,
       checkInTime: formData.checkInTime || 'Standard',
       checkOutTime: formData.checkOutTime || 'Standard',
-      roomType: formData.roomType,
+      roomType: bookingRoomType,
       status: 'pending',
       price: calculatedPrice,
       numberOfRooms: parseInt(formData.numberOfRooms) || 1
@@ -342,20 +353,29 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Room Type</label>
-            <select value={formData.roomType} onChange={e => setFormData({...formData, roomType: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none bg-white">
-              <option value="2BHK Delux room">2BHK Delux room</option>
-              <option value="2BHK Cottage">Cottage</option>
+            <select value={formData.roomType} onChange={e => setFormData({...formData, roomType: e.target.value, cottageType: 'AC rooms'})} className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none bg-white">
+              <option value="2BHK Bunglow">2BHK Bunglow</option>
+              <option value="Cottage">Cottage</option>
               <option value="Day Trip">Day Trip</option>
             </select>
           </div>
 
-          {(formData.roomType === '2BHK Cottage' || formData.roomType === 'Cottage') && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Number of Cottages (Max 6)</label>
-              <select value={formData.numberOfRooms} onChange={e => setFormData({...formData, numberOfRooms: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none bg-white">
-                {[1, 2, 3, 4, 5, 6].map(num => <option key={num} value={num}>{num}</option>)}
-              </select>
-            </div>
+          {formData.roomType === 'Cottage' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cottage Room Type</label>
+                <select value={formData.cottageType} onChange={e => setFormData({...formData, cottageType: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none bg-white">
+                  <option value="AC rooms">AC Rooms</option>
+                  <option value="Delux rooms">Delux Rooms</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Rooms (Max 3)</label>
+                <select value={formData.numberOfRooms} onChange={e => setFormData({...formData, numberOfRooms: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none bg-white">
+                  {[1, 2, 3].map(num => <option key={num} value={num}>{num}</option>)}
+                </select>
+              </div>
+            </>
           )}
 
           <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-xl">
@@ -461,10 +481,23 @@ const App: React.FC = () => {
     const { error } = await supabase.from('bookings').update({ status }).eq('id', id);
     if (error) console.error('Error updating status:', error);
   };
+
+  // 3. Delete record from Database
+  const handleDeleteRecord = async (id: string) => {
+    // Delete from Supabase first
+    const { error } = await supabase.from('bookings').delete().eq('id', id);
+    if (error) {
+      console.error('Error deleting record:', error);
+      alert('Failed to delete from database: ' + error.message);
+    } else {
+      // Optimistic update (remove from UI after successful deletion)
+      setBookings(prev => prev.filter(b => b.id !== id));
+    }
+  };
   // ---------------------------
 
   if (isAdminOpen) {
-    return <AdminPanel onBack={() => setIsAdminOpen(false)} bookings={bookings} onUpdateStatus={handleUpdateStatus} />;
+    return <AdminPanel onBack={() => setIsAdminOpen(false)} bookings={bookings} onUpdateStatus={handleUpdateStatus} onDeleteRecord={handleDeleteRecord} />;
   }
 
   const categories = [
@@ -802,6 +835,9 @@ const App: React.FC = () => {
                 </a>
                 <a href={`tel:${CONTACT_INFO.phone2}`} className="flex items-center gap-3 text-gray-300 hover:text-orange-400 transition-colors">
                   <Phone size={18} /> {CONTACT_INFO.phone2}
+                </a>
+                <a href={`tel:${CONTACT_INFO.phone3}`} className="flex items-center gap-3 text-gray-300 hover:text-orange-400 transition-colors">
+                  <Phone size={18} /> {CONTACT_INFO.phone3}
                 </a>
                 <a href="#" className="flex items-center gap-3 text-gray-300 hover:text-orange-400 transition-colors">
                   <Instagram size={18} /> {CONTACT_INFO.socialHandle}
