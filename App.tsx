@@ -102,18 +102,60 @@ const AnalogClock = ({ time }: { time: string }) => {
   const hourDegrees = ((hours % 12) * 30) + (minutes * 0.5);
 
   return (
-    <div className="w-10 h-10 rounded-full border-2 border-orange-500 bg-white relative shadow-sm flex items-center justify-center shrink-0 mx-2">
-      <div className="w-1 h-1 bg-black rounded-full z-10"></div>
+    <div className="w-16 h-16 rounded-full relative flex items-center justify-center shrink-0 mx-2 shadow-2xl" 
+         style={{
+           background: 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)',
+           border: '3px solid #f97316'
+         }}>
+      {/* Decorative outer ring */}
+      <div className="absolute inset-0 rounded-full border border-orange-200/30"></div>
+      
+      {/* Hour markers */}
+      {[...Array(12)].map((_, i) => {
+        const angle = (i * 30 - 90) * (Math.PI / 180);
+        const x = Math.cos(angle) * 28;
+        const y = Math.sin(angle) * 28;
+        return (
+          <div
+            key={i}
+            className="absolute w-1 h-1.5 bg-orange-500 rounded-full"
+            style={{
+              left: '50%',
+              top: '50%',
+              transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`
+            }}
+          />
+        );
+      })}
+
       {/* Hour Hand */}
       <div 
-        className="absolute w-0.5 h-2.5 bg-black rounded-full origin-bottom"
-        style={{ bottom: '50%', transform: `rotate(${hourDegrees}deg)` }}
+        className="absolute origin-bottom rounded-full shadow-lg"
+        style={{ 
+          bottom: '50%',
+          width: '3px',
+          height: '12px',
+          background: 'linear-gradient(to top, #1f2937, #374151)',
+          transform: `rotate(${hourDegrees}deg)`,
+          borderRadius: '2px'
+        }}
       />
+      
       {/* Minute Hand */}
       <div 
-        className="absolute w-0.5 h-3.5 bg-gray-400 rounded-full origin-bottom"
-        style={{ bottom: '50%', transform: `rotate(${minuteDegrees}deg)` }}
+        className="absolute origin-bottom rounded-full shadow-lg"
+        style={{ 
+          bottom: '50%',
+          width: '2px',
+          height: '16px',
+          background: 'linear-gradient(to top, #f97316, #ea580c)',
+          transform: `rotate(${minuteDegrees}deg)`,
+          borderRadius: '1px'
+        }}
       />
+      
+      {/* Center dot */}
+      <div className="absolute w-3 h-3 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full z-10 shadow-lg"></div>
     </div>
   );
 };
@@ -126,14 +168,14 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
     checkOut: '',
     checkInTime: '',
     checkOutTime: '',
-    adults: '0',
+    adults: '1',
     vegCount: '0',
     nonVegCount: '0',
     extraMattress: '0',
     comingFrom: '',
     transportMode: 'Private Car',
     roomType: '2BHK Bunglow',
-    numberOfRooms: '0',
+    numberOfRooms: '1',
     cottageType: 'AC rooms'
   });
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -228,7 +270,7 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
     const kidsDetails = kidsAges.map(age => `${age} yrs (${getKidChargeMessage(age)})`).join(', ');
     
     const roomDisplayName = formData.roomType === 'Cottage' ? `Cottage - ${formData.cottageType}` : formData.roomType;
-    const message = `New Booking Request at DSK Farm\n\n*Guest Details*\nName: ${formData.name}\nPhone: ${formData.phone}\nFrom: ${formData.comingFrom}\n\n*Stay Details*\nRoom: ${roomDisplayName} (Qty: ${formData.numberOfRooms})\nDates: ${formatDate(formData.checkIn)} to ${formatDate(formData.checkOut)}\nTime: ${formData.checkInTime || 'Standard'} - ${formData.checkOutTime || 'Standard'}\nTransport: ${formData.transportMode}\n\n*Group Info*\nTotal Guests: ${totalGuests}\nAdults: ${formData.adults}\nKids: ${kidsAges.length} [${kidsDetails}]\nVeg: ${formData.vegCount} | Non-Veg: ${formData.nonVegCount}\nExtra Mattress: ${formData.extraMattress}\n\n*Estimated Price: ₹${calculatedPrice.toLocaleString('en-IN')}*\n\nPlease confirm availability.`;
+    const message = `New Booking Request at DSK Farm\n\n*Guest Details*\nName: ${formData.name}\nPhone: ${formData.phone}\nFrom: ${formData.comingFrom}\n\n*Stay Details*\nRoom: ${roomDisplayName} (Qty: ${formData.numberOfRooms})\nDates: ${formatDate(formData.checkIn)} to ${formatDate(formData.checkOut)}\nTime: ${formData.checkInTime || 'Standard'} - ${formData.checkOutTime || 'Standard'}\nTransport: ${formData.transportMode}\n\n*Group Info*\nTotal Guests: ${totalGuests}\nAdults: ${formData.adults}\nKids: ${kidsAges.length} [${kidsDetails}]\nVeg: ${formData.vegCount} | Non-Veg: ${formData.nonVegCount}\nExtra Mattress: ${formData.extraMattress}\n\nThe final price breakdown will be sent as soon as possible.\n\nPlease confirm availability.`;
     const encodedText = encodeURIComponent(message);
     
     // Create booking object for Admin Panel
@@ -302,7 +344,7 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
               </div>
               {isDateFull(formData.checkIn) && <p className="text-xs text-red-500 mt-1">No booking available on this day</p>}
               <div className="flex items-center mt-2">
-                <input type="time" value={formData.checkInTime} onChange={e => setFormData({...formData, checkInTime: e.target.value})} className="flex-1 px-2 py-1 text-sm rounded-lg border border-gray-300 outline-none" />
+                <input type="time" value={formData.checkInTime} onChange={e => setFormData({...formData, checkInTime: e.target.value})} min="11:00" className="flex-1 px-2 py-1 text-sm rounded-lg border border-gray-300 outline-none" />
                 <AnalogClock time={formData.checkInTime} />
               </div>
             </div>
@@ -403,15 +445,10 @@ const BookingModal = ({ onClose, categories, onSubmit, bookings }: { onClose: ()
                   <option value="Bike">Bike</option>
                   <option value="Bus/Public">Bus/Public</option>
                   <option value="Cab/Taxi">Cab/Taxi</option>
+                  <option value="Train">Train</option>
                 </select>
               </div>
             </div>
-          </div>
-
-          <div className="bg-green-50 p-4 rounded-xl text-center border border-green-200">
-            <p className="text-sm text-gray-600">Estimated Price</p>
-            <p className="text-3xl font-bold text-green-700">₹{calculatedPrice.toLocaleString('en-IN')}</p>
-            <p className="text-xs text-gray-500 mt-1">Final price confirmed by admin.</p>
           </div>
 
           <button type="submit" disabled={isDateFull(formData.checkIn)} className={`w-full ${isDateFull(formData.checkIn) ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'} text-white font-bold py-3 rounded-xl shadow-lg mt-2 transition-transform active:scale-95`}>Confirm via WhatsApp</button>
@@ -451,7 +488,10 @@ const App: React.FC = () => {
           checkInTime: b.check_in_time,
           checkOutTime: b.check_out_time,
           roomType: b.room_type,
-          status: b.status
+          status: b.status,
+          price: b.price,
+          numberOfRooms: b.number_of_rooms,
+          discount: b.discount
         }));
         setBookings(mappedBookings);
       }
@@ -473,12 +513,14 @@ const App: React.FC = () => {
   }, []);
 
   // 2. Update status in Database
-  const handleUpdateStatus = async (id: string, status: 'confirmed' | 'declined') => {
+  const handleUpdateStatus = async (id: string, status: 'confirmed' | 'declined', discount?: number) => {
     // Optimistic update (update UI immediately)
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
+    setBookings(prev => prev.map(b => b.id === id ? { ...b, status, discount } : b));
     
     // Update Supabase
-    const { error } = await supabase.from('bookings').update({ status }).eq('id', id);
+    const updateData: any = { status };
+    if (discount !== undefined) updateData.discount = discount;
+    const { error } = await supabase.from('bookings').update(updateData).eq('id', id);
     if (error) console.error('Error updating status:', error);
   };
 
@@ -553,7 +595,7 @@ const App: React.FC = () => {
 
   return (
     <div className="bg-stone-50 min-h-screen selection:bg-orange-200">
-      <Navbar />
+      <Navbar onBookNow={() => setIsBookingOpen(true)} />
 
       {/* HERO SECTION */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
