@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Menu, X, Phone } from 'lucide-react';
 import { CONTACT_INFO } from '../constants';
 
-const Navbar: React.FC = () => {
+const Navbar: React.FC<{ onBookNow: () => void }> = ({ onBookNow }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const navLinks = [
@@ -32,13 +32,13 @@ const Navbar: React.FC = () => {
                 {link.name}
               </a>
             ))}
-            <a 
-              href={`tel:${CONTACT_INFO.phone1}`}
+            <button 
+              onClick={onBookNow}
               className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-full font-bold shadow-lg transform hover:scale-105 transition-all flex items-center gap-2"
             >
               <Phone size={18} />
               Book Now
-            </a>
+            </button>
           </div>
 
           <div className="md:hidden flex items-center">
@@ -67,12 +67,16 @@ const Navbar: React.FC = () => {
               </a>
             ))}
             <div className="pt-4 flex justify-center">
-               <a 
-                href={`tel:${CONTACT_INFO.phone1}`}
-                className="w-full mx-4 bg-orange-500 text-white text-center py-3 rounded-xl font-bold shadow-md"
+               <button 
+                onClick={() => {
+                  onBookNow();
+                  setIsOpen(false);
+                }}
+                className="w-full mx-4 bg-orange-500 text-white flex items-center justify-center gap-2 py-3 rounded-xl font-bold shadow-md"
               >
-                Call to Book
-              </a>
+                <Phone size={20} />
+                Book Now
+              </button>
             </div>
           </div>
         </div>
