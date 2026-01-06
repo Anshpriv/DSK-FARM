@@ -152,18 +152,20 @@ export default function AdminPanel({ onBack, bookings, onUpdateStatus, onDeleteR
     window.open(`https://wa.me/${cleanPhone}?text=${encodedText}`, '_blank');
   };
 
-  const handleConfirm = (id: string, discount: number) => {
+  const handleConfirm = (id: string, discountPercent: number) => {
     const booking = bookings.find((b) => b.id === id);
     if (!booking) return;
     
-    onUpdateStatus(id, 'confirmed', discount);
-
     const price = booking.price || 0;
-    const finalPrice = price - discount;
+    const discountAmount = (price * discountPercent) / 100;
+    
+    onUpdateStatus(id, 'confirmed', discountAmount);
+
+    const finalPrice = price - discountAmount;
     const advanceAmount = finalPrice / 2;
     const qrLink = `${window.location.origin}${qrCode}`;
 
-    const message = `*Booking Confirmed!* ✅\n\nHello ${booking.userName},\nYour booking at DSK Farm is confirmed.\n\n*Details:*\nRoom: ${booking.roomType}\nDates: ${booking.checkIn} to ${booking.checkOut}\n\n*Payment Breakdown:*\nTotal Amount: ₹${price.toLocaleString('en-IN')}\nDiscount: ₹${discount.toLocaleString('en-IN')}\n*Final Payable: ₹${finalPrice.toLocaleString('en-IN')}*\n\n*Please pay 50% advance (₹${advanceAmount.toLocaleString('en-IN')}) to confirm.*\n\n*Payment Options:*\nUPI ID: manojwani130974-2@okaxis\n\n*Scan QR Code via Link:*\n${qrLink}`;
+    const message = `*Booking Confirmed!* ✅\n\nHello ${booking.userName},\nYour booking at DSK Farm is confirmed.\n\n*Details:*\nRoom: ${booking.roomType}\nDates: ${booking.checkIn} to ${booking.checkOut}\n\n*Payment Breakdown:*\nTotal Amount: ₹${price.toLocaleString('en-IN')}\nDiscount (${discountPercent}%): ₹${discountAmount.toLocaleString('en-IN')}\n*Final Payable: ₹${finalPrice.toLocaleString('en-IN')}*\n\n*Please pay 50% advance (₹${advanceAmount.toLocaleString('en-IN')}) to confirm.*\n\n*Payment Options:*\nUPI ID: manojwani130974-2@okaxis\n\n*Scan QR Code via Link:*\n${qrLink}`;
     sendWhatsAppMessage(booking.userPhone, message);
   };
 
@@ -290,7 +292,7 @@ export default function AdminPanel({ onBack, bookings, onUpdateStatus, onDeleteR
                         <div className="flex justify-end gap-2">
                           <input 
                             type="number" 
-                            placeholder="Discount ₹"
+                            placeholder="Disc %"
                             className="w-24 px-2 py-1 text-sm border border-gray-300 rounded outline-none focus:border-green-500"
                             value={discountInputs[booking.id] || ''}
                             onChange={(e) => setDiscountInputs({...discountInputs, [booking.id]: e.target.value})}
